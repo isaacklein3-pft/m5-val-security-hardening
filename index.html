@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M5 Validator Security Hardening and Incident Response Architecture</title>
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --blue: #1b4f8a;
+    --accent: #2e7dbc;
+    --light-blue: #e8f1f8;
+    --green: #1a6b3c;
+    --light-green: #e8f5ee;
+    --red: #8b1a1a;
+    --light-red: #fdf0f0;
+    --amber: #7a4f00;
+    --light-amber: #fdf6e3;
+    --gray: #4a4a4a;
+    --light-gray: #f5f5f5;
+    --border: #d0d9e3;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--navy);
+    background: var(--white);
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 40px 80px;
+  }
+  /* Cover */
+  .cover {
+    border-top: 6px solid var(--accent);
+    border-bottom: 2px solid var(--border);
+    padding: 48px 0 36px;
+    margin-bottom: 48px;
+    text-align: center;
+  }
+  .cover-badge {
+    display: inline-block;
+    background: var(--light-blue);
+    color: var(--blue);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    padding: 4px 12px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .cover h1 {
+    font-size: 26px;
+    font-weight: bold;
+    color: var(--navy);
+    line-height: 1.3;
+    margin-bottom: 12px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .cover-sub {
+    font-size: 14px;
+    color: var(--gray);
+    margin-bottom: 28px;
+  }
+  .cover-meta {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    font-size: 12px;
+    color: var(--gray);
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    margin-top: 20px;
+  }
+  .cover-meta span strong { color: var(--navy); }
+
+  /* TOC */
+  .toc {
+    background: var(--light-gray);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 {
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 14px;
+    font-family: sans-serif;
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+  }
+  .toc ol li {
+    counter-increment: toc;
+    padding: 4px 0;
+    font-size: 13px;
+    color: var(--gray);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .toc ol li::before {
+    content: counter(toc) ".";
+    font-weight: bold;
+    color: var(--accent);
+    min-width: 18px;
+    font-family: sans-serif;
+  }
+  .toc ol li a { color: var(--navy); text-decoration: none; }
+  .toc ol li a:hover { color: var(--accent); text-decoration: underline; }
+
+  /* Section structure */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .section-num {
+    background: var(--accent);
+    color: var(--white);
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 18px;
+    color: var(--navy);
+    line-height: 1.25;
+  }
+  .subsection { margin-bottom: 28px; }
+  .subsection h3 {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--blue);
+    margin-bottom: 10px;
+    font-family: sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-left: 3px solid var(--accent);
+    padding-left: 10px;
+  }
+  p { margin-bottom: 12px; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  th {
+    background: var(--navy);
+    color: var(--white);
+    font-family: sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--light-gray); }
+  tr:last-child td { border-bottom: 2px solid var(--accent); }
+
+  /* Code / monospace */
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: #eef2f7;
+    border: 1px solid #c8d8e8;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--navy);
+  }
+  pre {
+    background: var(--navy);
+    color: #d0e4f4;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    padding: 16px 18px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+  pre .comment { color: #6a9ec0; }
+  pre .key { color: #79d4f1; }
+  pre .val { color: #b5cea8; }
+
+  /* Callout boxes */
+  .callout {
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .callout.info {
+    background: var(--light-blue);
+    border-left: 4px solid var(--accent);
+    color: var(--blue);
+  }
+  .callout.warning {
+    background: var(--light-amber);
+    border-left: 4px solid #e0a800;
+    color: var(--amber);
+  }
+  .callout.critical {
+    background: var(--light-red);
+    border-left: 4px solid var(--red);
+    color: var(--red);
+  }
+  .callout.success {
+    background: var(--light-green);
+    border-left: 4px solid var(--green);
+    color: var(--green);
+  }
+  .callout strong { display: block; margin-bottom: 4px; font-family: sans-serif; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  /* Priority tier badges */
+  .tier {
+    display: inline-block;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 3px;
+    padding: 2px 8px;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
+  .tier.p1 { background: #c0392b; color: white; }
+  .tier.p2 { background: #e67e22; color: white; }
+  .tier.p3 { background: #f39c12; color: #333; }
+  .tier.p4 { background: #7f8c8d; color: white; }
+
+  /* Flow diagram (CSS-only) */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 20px;
+  }
+  .flow-step {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .flow-connector {
+    width: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .flow-connector .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 18px;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .flow-connector .line {
+    width: 2px;
+    flex-grow: 1;
+    background: var(--border);
+  }
+  .flow-step:first-child .flow-connector .line.top { display: none; }
+  .flow-step:last-child .flow-connector .line.bottom { display: none; }
+  .flow-box {
+    flex-grow: 1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 4px 0;
+    background: var(--white);
+  }
+  .flow-box h4 {
+    font-family: sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--navy);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .flow-box p { font-size: 12px; color: var(--gray); margin: 0; }
+
+  /* Matrix grid */
+  .matrix {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .matrix-cell {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+  }
+  .matrix-cell h4 {
+    font-family: sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-weight: bold;
+  }
+  .matrix-cell ul {
+    list-style: none;
+    font-size: 12.5px;
+    color: var(--gray);
+  }
+  .matrix-cell ul li { padding: 2px 0; padding-left: 14px; position: relative; }
+  .matrix-cell ul li::before { content: "–"; position: absolute; left: 0; color: var(--accent); }
+
+  /* Section divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 40px 0;
+  }
+
+  /* Appendix */
+  .appendix-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .appendix-card {
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 14px;
+    font-size: 12px;
+  }
+  .appendix-card h4 {
+    font-family: sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+  .appendix-card p { color: var(--gray); margin: 0; }
+
+  /* Footer */
+  .footer {
+    margin-top: 60px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media print {
+    body { padding: 20px; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-badge">Post Fiat Superstructure Validator Platform</div>
+  <h1>M5 Validator Security Hardening and Incident Response Architecture</h1>
+  <div class="cover-sub">Security-Auditable Infrastructure for Live Institutional Validator Operations</div>
+  <div class="cover-meta">
+    <span><strong>Phase:</strong> M5: Live Validator Operations</span>
+    <span><strong>Classification:</strong> Institutional Security Specification</span>
+    <span><strong>Version:</strong> 1.0, March 2026</span>
+    <span><strong>Alignment:</strong> Superstructure Validator Platform</span>
+  </div>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<div class="callout info">
+  <strong>Document Purpose</strong>
+  This specification defines the security hardening and incident response architecture required to advance Post Fiat Superstructure validator nodes from operational readiness (M4) into security-auditable infrastructure that institutional allocators require before committing to live deployment. It covers five domains: runtime security controls, automated threat detection, incident classification and escalation, forensic evidence preservation, and Orchestration Control Plane recovery integration. All controls are designed to preserve the zero-custody architecture established in M2 and M3 under adversarial conditions.
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#s1">Runtime Security Controls</a>: process isolation, network segmentation, key material protection, secure boot</li>
+    <li><a href="#s2">Automated Threat Detection and Alerting Pipelines</a>: anomaly triggers, alert routing, severity classification</li>
+    <li><a href="#s3">Incident Classification and Escalation Procedures</a>: P1–P4 tiers, SLAs, escalation paths, communication templates</li>
+    <li><a href="#s4">Forensic Evidence Preservation Workflows</a>: log immutability, chain of custody, snapshot and isolation, DR integration</li>
+    <li><a href="#s5">OCP Recovery Integration Points</a>: isolation triggers, failover coordination, fleet patch workflows, restoration procedures</li>
+  </ol>
+</div>
+
+<!-- SECTION 1: RUNTIME SECURITY CONTROLS -->
+<div class="section" id="s1">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <h2>Runtime Security Controls</h2>
+  </div>
+
+  <p>Runtime security controls establish the hardened execution environment for live validator nodes. These controls address four threat surfaces: process-level isolation, network perimeter segmentation, key material protection across the full data lifecycle, and binary integrity verification at startup. Controls in this section apply to both Operator Layer (Layer 2) infrastructure and Middleware Layer (Layer 3) coordination nodes.</p>
+
+  <div class="subsection">
+    <h3>1.1 Process Isolation Model</h3>
+    <p>Each validator process runs in a dedicated execution namespace with no shared memory regions between the signing daemon, telemetry agent, and network listener processes. The process model enforces a least-privilege execution boundary: the signing daemon holds the narrowest possible permission set, limited to receiving signing envelopes from the designated middleware socket and returning signed blobs to the same socket. It has no outbound network access, no filesystem write access outside a designated ephemeral scratch directory, and no inter-process communication channels other than the controlled middleware socket.</p>
+    <table>
+      <tr><th>Process</th><th>User Context</th><th>Network Access</th><th>Filesystem Write</th><th>IPC Channels</th></tr>
+      <tr><td><code>pft-signing-daemon</code></td><td>Isolated UID (non-root)</td><td>None (loopback only)</td><td>Ephemeral scratch only</td><td>Middleware socket (inbound/outbound)</td></tr>
+      <tr><td><code>pft-telemetry-agent</code></td><td>Isolated UID (non-root)</td><td>Outbound to OCP endpoint only</td><td>Log buffer only</td><td>Read-only metrics pipe</td></tr>
+      <tr><td><code>pft-network-listener</code></td><td>Isolated UID (non-root)</td><td>Inbound on designated port only</td><td>None</td><td>Envelope queue (write-only)</td></tr>
+      <tr><td><code>pft-ocp-bridge</code></td><td>Isolated UID (non-root)</td><td>Bidirectional to OCP only</td><td>State checkpoint only</td><td>OCP command channel</td></tr>
+    </table>
+    <p>Container-level isolation (e.g., Linux namespaces, cgroup constraints) enforces memory and CPU ceilings per process. A breach of the ceiling threshold triggers an automated alert to the operator SOC before any process termination. Privileged container capabilities are explicitly dropped at startup. Root access to the validator host is prohibited during normal operation; all administrative access requires a signed maintenance session envelope delivered through the same OCP-controlled pathway used for configuration updates.</p>
+  </div>
+
+  <div class="subsection">
+    <h3>1.2 Network Segmentation Rules and Firewall Policies</h3>
+    <p>Validator hosts operate within a dedicated network segment, isolated from shared operator infrastructure by a hardware firewall enforcing allowlist-only ingress and egress. No validator host has reachability to the public internet except through explicitly enumerated egress rules that route exclusively to OCP endpoints and the Post Fiat peer network.</p>
+    <table>
+      <tr><th>Traffic Direction</th><th>Source</th><th>Destination</th><th>Protocol/Port</th><th>Purpose</th></tr>
+      <tr><td>Inbound</td><td>OCP middleware IP range</td><td>Validator host</td><td>TCP/8443 (mTLS)</td><td>Signing envelope delivery</td></tr>
+      <tr><td>Inbound</td><td>Operator admin bastion</td><td>Validator host</td><td>TCP/22 (SSH, key-only, MFA-gated)</td><td>Maintenance sessions (signed envelope required)</td></tr>
+      <tr><td>Outbound</td><td>Validator host</td><td>OCP telemetry endpoint</td><td>TCP/9443 (mTLS)</td><td>Telemetry heartbeat and metrics push</td></tr>
+      <tr><td>Outbound</td><td>Validator host</td><td>Post Fiat peer network</td><td>TCP/6561</td><td>Block propagation and validation</td></tr>
+      <tr><td>Blocked (default)</td><td>Any</td><td>Any other destination</td><td>All</td><td>Default deny; alert on attempt</td></tr>
+    </table>
+    <div class="callout warning">
+      <strong>Egress Attempt Alert Policy</strong>
+      Any outbound connection attempt to a destination not in the allowlist generates an immediate severity-2 alert to the operator SOC. Three or more egress attempts to non-allowlisted destinations within a 60-second window elevate automatically to severity-1 (P1 incident) and trigger OCP validator isolation. This threshold and sustain window prevent false positives from transient DNS misconfiguration while catching active exfiltration attempts before data leaves the perimeter.
+    </div>
+    <p>Firewall rules are version-controlled and distributed only through the OCP configuration update pathway, which requires a signing ceremony for any rule modification. Operators cannot modify firewall rules through direct host access during normal operations. All rule changes are logged with timestamp, initiating entity, and ceremony nonce to the immutable audit log.</p>
+  </div>
+
+  <div class="subsection">
+    <h3>1.3 Key Material Protection: At Rest and In Transit</h3>
+    <p>Key material protection follows the zero-custody boundary established in M2. The Institution (Layer 1) holds all private key material in approved custody: institution-owned HSM (FIPS 140-2 Level 3), air-gapped signing system, or institutional multisig with the institution as policy owner. Cloud HSMs are rejected because the provider retains operational access. This boundary is inviolable: no key material enters Operator Layer (Layer 2) or Middleware Layer (Layer 3) infrastructure under any operational scenario, including incident response and disaster recovery.</p>
+    <table>
+      <tr><th>Key Material Category</th><th>Storage Location</th><th>Protection Standard</th><th>Transit Mechanism</th></tr>
+      <tr><td>Validator signing key (Ed25519 private)</td><td>Institution HSM / air-gap (Layer 1 only)</td><td>FIPS 140-2 L3; never leaves custody boundary</td><td>N/A (key never transits)</td></tr>
+      <tr><td>Signing envelope (unsigned payload)</td><td>In-memory only during ceremony</td><td>Delivered via mTLS; zero-knowledge to Layer 2</td><td>mTLS 1.3, ephemeral session keys</td></tr>
+      <tr><td>Signed transaction blob (output)</td><td>Ephemeral; broadcast immediately</td><td>Ed25519 signature over RFC 8785 canonical JSON</td><td>mTLS 1.3 to OCP broadcast endpoint</td></tr>
+      <tr><td>OCP authentication credentials</td><td>Operator secrets manager (Layer 2)</td><td>Encrypted at rest, AES-256; rotated per M3 key rotation SLA</td><td>mTLS client certificates</td></tr>
+      <tr><td>Telemetry signing key</td><td>Operator secrets manager (Layer 2)</td><td>Encrypted at rest; scoped to telemetry only</td><td>mTLS 1.3</td></tr>
+    </table>
+    <p>Key rotation for operator credentials follows the root-gated signing ceremony pathway defined in M3. A key rotation request requires a Maker/Checker/Reviewer (M/C/R) ceremony inside the institution's custody environment. The Reviewer role is non-waivable for key rotation actions. After rotation, the previous key is revoked in the OCP key registry within 300 seconds. Any signing attempt using a revoked key returns <code>ERR_KEY_REVOKED</code> and triggers a P2 alert.</p>
+    <p>In-transit protection uses mutual TLS (mTLS) 1.3 for all connections crossing process or host boundaries. Certificate pinning is enforced at both the OCP endpoint and the validator host. A certificate mismatch terminates the connection immediately and generates a P2 alert. Session keys are ephemeral and rotated per connection; no session key is reused across envelope deliveries.</p>
+  </div>
+
+  <div class="subsection">
+    <h3>1.4 Secure Boot Verification for Validator Binaries</h3>
+    <p>All validator processes are verified against a cryptographic manifest before execution. The secure boot pipeline runs at host startup and before each process launch following a restart or update event.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>1. Manifest Retrieval</h4><p>OCP delivers a signed binary manifest (SHA-256 hashes + version identifiers) via the OCP bridge channel. Manifest is signed with OCP's Ed25519 root key. Signature is verified before manifest is trusted.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>2. Binary Hash Verification</h4><p>Each validator binary is hashed locally (SHA-256). Local hash is compared against the manifest entry. Any mismatch halts the startup sequence and generates a P1 alert. The affected process does not start.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>3. Version Lock Enforcement</h4><p>Running version is checked against the OCP-enforced minimum version floor. A binary below the minimum version is blocked from starting. The operator receives a remediation window notification through the OCP admin channel.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>4. Runtime Integrity Monitoring</h4><p>A continuous integrity monitor polls each running binary's memory-mapped image every 300 seconds against the trusted manifest hash. Any drift from the expected hash generates a P1 alert and triggers OCP-directed process restart from a verified binary.</p></div>
+      </div>
+    </div>
+    <div class="callout critical">
+      <strong>Binary Substitution Attack Prevention</strong>
+      The 300-second runtime integrity polling window is deliberately short relative to the minimum viable dwell time for a binary substitution attack (estimated 600 seconds for an attacker to establish persistence after substitution). The polling interval prevents an attacker from substituting a binary, performing malicious operations, and restoring the original binary before the next integrity check. The sustain window is one poll. A single hash mismatch triggers the alert immediately with no debounce, because legitimate binary changes arrive only through the OCP update pathway, which pre-registers the new hash in the manifest before the binary is distributed.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SECTION 2: AUTOMATED THREAT DETECTION AND ALERTING -->
+<div class="section" id="s2">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <h2>Automated Threat Detection and Alerting Pipelines</h2>
+  </div>
+
+  <p>The automated threat detection pipeline monitors validator node behavior across four threat surface categories: access control, configuration integrity, signing behavior, and network perimeter. Detection logic runs inside the Middleware Layer (Layer 3) telemetry processing pipeline, which is independent of operator-controlled infrastructure. This independence ensures that a compromised operator cannot suppress alerts by interfering with host-level monitoring agents.</p>
+
+  <div class="subsection">
+    <h3>2.1 Anomaly Detection Triggers</h3>
+    <p>Each trigger below specifies the detection logic, the sustain window (to prevent false positives from transient conditions), and the resulting alert severity. All triggers route to the operator SOC and the OCP simultaneously. Suppression by either party is not architecturally possible.</p>
+    <table>
+      <tr><th>Trigger Category</th><th>Detection Condition</th><th>Sustain Window</th><th>Severity</th><th>Rationale for Window</th></tr>
+      <tr>
+        <td>Unauthorized Access Attempt</td>
+        <td>SSH login attempt with invalid credentials; or access attempt from IP outside the admin bastion allowlist</td>
+        <td>1 attempt = P3; 5 attempts within 120s = P2; 10 attempts within 120s = P1</td>
+        <td>P3 escalating to P1</td>
+        <td>Single failed logins are common noise. Sustained attempts indicate automated credential stuffing or targeted attack. 120-second window isolates burst attacks from distributed slow-scan attempts.</td>
+      </tr>
+      <tr>
+        <td>Configuration Drift</td>
+        <td>Any deviation between the OCP-registered configuration state and the running configuration hash on the validator host</td>
+        <td>Zero tolerance: first detection = P2 immediately</td>
+        <td>P2</td>
+        <td>Legitimate configuration changes arrive only through the OCP signing ceremony pathway, which pre-registers the new configuration hash. Any out-of-band change is definitionally unauthorized. No sustain window is warranted.</td>
+      </tr>
+      <tr>
+        <td>Unusual Signing Pattern: Velocity</td>
+        <td>More than 3 signing ceremony initiations within a 60-second window for the same validator identity</td>
+        <td>60-second rolling window; trigger fires if threshold breached at any point in window</td>
+        <td>P2</td>
+        <td>Normal operation produces at most 1 signing ceremony per block cycle. A velocity spike indicates either replay attack tooling or middleware misconfiguration. The 60-second window matches the block cycle to eliminate false positives from batch catch-up scenarios.</td>
+      </tr>
+      <tr>
+        <td>Unusual Signing Pattern: Time-of-Day Anomaly</td>
+        <td>Signing ceremony initiated outside the operator's declared maintenance window during a period where no network-level event (fork, upgrade) is registered on OCP</td>
+        <td>Single occurrence = P3; if also accompanied by velocity anomaly = P2</td>
+        <td>P3 or P2</td>
+        <td>Combined with velocity anomaly, off-hours signing ceremonies are a strong indicator of unauthorized access using a stolen ceremony initiation credential.</td>
+      </tr>
+      <tr>
+        <td>Replay Attempt</td>
+        <td>Signing envelope received with a nonce already present in the 30-day nonce retention log; returns <code>ERR_NONCE_REPLAY</code></td>
+        <td>Zero tolerance: first occurrence = P2 immediately</td>
+        <td>P2</td>
+        <td>Replay attempts are definitionally malicious or indicate serious middleware misconfiguration. No legitimate replay scenario exists under the M3 nonce architecture.</td>
+      </tr>
+      <tr>
+        <td>Envelope Freshness Violation</td>
+        <td>Signing envelope received with timestamp outside the 120-second freshness window</td>
+        <td>First occurrence = P3; 3 within 300s = P2</td>
+        <td>P3 escalating to P2</td>
+        <td>A single stale envelope may indicate clock drift (P3, remediate). Repeated stale envelopes suggest a replay staging attack where an attacker is holding envelopes for delayed submission. The 300-second window catches this pattern before it succeeds.</td>
+      </tr>
+      <tr>
+        <td>Telemetry Gap</td>
+        <td>OCP receives no telemetry heartbeat from validator host for 90 consecutive seconds</td>
+        <td>90 seconds, matching the OCP failover trigger from M3 routing logic</td>
+        <td>P2</td>
+        <td>Telemetry gap is the primary indicator of host-level compromise or targeted silencing attack. The 90-second window is three missed 30-second heartbeat cycles, preventing false positives from transient network jitter (single missed heartbeat is common).</td>
+      </tr>
+      <tr>
+        <td>Binary Integrity Violation</td>
+        <td>Runtime integrity monitor detects hash mismatch against trusted manifest</td>
+        <td>Zero tolerance: first detection = P1 immediately</td>
+        <td>P1</td>
+        <td>Binary substitution is a high-confidence malicious event with no benign explanation. Legitimate updates register a new manifest hash through OCP before distribution.</td>
+      </tr>
+      <tr>
+        <td>Non-Allowlisted Egress Attempt</td>
+        <td>Outbound connection attempt to a destination not in the firewall allowlist</td>
+        <td>1 attempt = P3; 3 attempts within 60s = P1</td>
+        <td>P3 escalating to P1</td>
+        <td>Single egress attempts may reflect misconfigured processes. Three within 60 seconds indicates active exfiltration tooling. The 60-second window catches rapid exfiltration attempts before significant data volume can leave the perimeter.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="subsection">
+    <h3>2.2 Alert Routing to Operator SOC and OCP</h3>
+    <p>All alerts are routed simultaneously to two independent channels: the operator Security Operations Center (SOC) and the OCP incident queue. Routing is bidirectional and non-exclusive. Suppression at the SOC level does not suppress the OCP alert. The OCP alert channel is operated by the Middleware Layer (Layer 3) and is architecturally independent of Operator Layer infrastructure.</p>
+    <div class="matrix">
+      <div class="matrix-cell">
+        <h4>Operator SOC Channels</h4>
+        <ul>
+          <li>PagerDuty integration (P1/P2 alerts, immediate page)</li>
+          <li>Slack channel #validator-security-alerts (P3/P4 alerts)</li>
+          <li>Email notification digest (P4, hourly batch)</li>
+          <li>SOC dashboard real-time feed (all severities)</li>
+          <li>Webhook to operator SIEM for correlation</li>
+        </ul>
+      </div>
+      <div class="matrix-cell">
+        <h4>OCP Incident Queue Channels</h4>
+        <ul>
+          <li>OCP incident API endpoint (all severities)</li>
+          <li>OCP automated response pipeline (P1, triggers isolation)</li>
+          <li>Institutional notification gateway (P1/P2)</li>
+          <li>Network coordination alert for P1 events affecting signing</li>
+          <li>OCP audit log (immutable, all severities)</li>
+        </ul>
+      </div>
+    </div>
+    <p>Alert payload format is standardized across all triggers. Each alert record includes: alert identifier (UUID), trigger category, detection timestamp (UTC), validator node identifier, operator identifier, severity classification, sustain window state at trigger time, raw evidence snippet (hash, log line, or connection attempt record), and alert routing confirmation (SOC ACK timestamp required within tier SLA).</p>
+    <div class="callout info">
+      <strong>Anti-Suppression Design</strong>
+      The OCP incident queue endpoint is authenticated using a certificate pinned to the OCP root certificate authority, not the operator's certificate chain. Operator infrastructure cannot intercept, modify, or suppress alert delivery to the OCP queue. If the OCP queue endpoint is unreachable for more than 30 seconds, the validator node enters a safe degraded state (continues block validation; suspends new signing ceremony acceptance) and the operator SOC receives a P1 alert about OCP connectivity loss.
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>2.3 Severity Classification Thresholds</h3>
+    <table>
+      <tr><th>Severity</th><th>Label</th><th>Characterization</th><th>SOC Response SLA</th><th>Auto-OCP Action</th></tr>
+      <tr>
+        <td><span class="tier p1">P1</span></td>
+        <td>Critical</td>
+        <td>Active threat to signing integrity, key material exposure risk, binary compromise, or sustained exfiltration attempt. Immediate risk to institutional funds or network stability.</td>
+        <td>15 minutes to operator acknowledgment; 30 minutes to containment action</td>
+        <td>Automatic validator isolation; standby failover initiated</td>
+      </tr>
+      <tr>
+        <td><span class="tier p2">P2</span></td>
+        <td>High</td>
+        <td>Confirmed unauthorized access, configuration drift, replay attempt, or telemetry silencing. Strong indicator of malicious activity with limited evidence of active exploitation.</td>
+        <td>30 minutes to acknowledgment; 2 hours to remediation plan</td>
+        <td>Signing ceremony suspension; operator escalation required before resumption</td>
+      </tr>
+      <tr>
+        <td><span class="tier p3">P3</span></td>
+        <td>Medium</td>
+        <td>Low-confidence indicators of potential threat: single unauthorized access attempt, single stale envelope, single non-allowlisted egress attempt, off-hours anomaly without corroboration.</td>
+        <td>4 hours to acknowledgment; 24 hours to remediation</td>
+        <td>Alert logged; no automated isolation; SOC investigation required</td>
+      </tr>
+      <tr>
+        <td><span class="tier p4">P4</span></td>
+        <td>Low</td>
+        <td>Informational: performance warnings below threshold, scheduled maintenance events, telemetry reporting delays within acceptable bounds, audit log events requiring review.</td>
+        <td>24 hours to acknowledgment; next maintenance window for remediation</td>
+        <td>None; logged to audit trail only</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SECTION 3: INCIDENT CLASSIFICATION AND ESCALATION -->
+<div class="section" id="s3">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <h2>Incident Classification and Escalation Procedures</h2>
+  </div>
+
+  <p>Incident classification maps the automated alert severity model to a structured human response workflow. The escalation path is designed so that no single party (operator, institution, or OCP) can unilaterally resolve a P1 or P2 incident without cross-layer coordination. This mirrors the governance coordination model established in M3: the signing authority layer and the infrastructure response layer remain separated even under incident conditions.</p>
+
+  <div class="subsection">
+    <h3>3.1 Severity Tiers and Response Time SLAs</h3>
+    <table>
+      <tr><th>Tier</th><th>Detection-to-ACK SLA</th><th>ACK-to-Containment SLA</th><th>Containment-to-Resolution SLA</th><th>Post-Incident Review SLA</th></tr>
+      <tr>
+        <td><span class="tier p1">P1</span></td>
+        <td>15 minutes</td>
+        <td>30 minutes from ACK</td>
+        <td>4 hours from containment</td>
+        <td>48 hours; root cause analysis required</td>
+      </tr>
+      <tr>
+        <td><span class="tier p2">P2</span></td>
+        <td>30 minutes</td>
+        <td>2 hours from ACK</td>
+        <td>24 hours from containment</td>
+        <td>5 business days; findings report required</td>
+      </tr>
+      <tr>
+        <td><span class="tier p3">P3</span></td>
+        <td>4 hours</td>
+        <td>24 hours from ACK</td>
+        <td>5 business days from containment</td>
+        <td>Next security review cycle</td>
+      </tr>
+      <tr>
+        <td><span class="tier p4">P4</span></td>
+        <td>24 hours</td>
+        <td>Next maintenance window</td>
+        <td>Next maintenance window</td>
+        <td>Monthly aggregate review</td>
+      </tr>
+    </table>
+    <div class="callout warning">
+      <strong>SLA Breach Escalation</strong>
+      If the operator fails to acknowledge a P1 alert within 15 minutes, OCP escalates automatically: (1) the institution's designated security contact receives a direct notification through the institutional gateway; (2) the OCP network coordination alert is elevated to network-level visibility; (3) the validator node remains in isolated state until operator acknowledgment plus institution concurrence is received. An unacknowledged P1 that persists for 60 minutes without operator response initiates the network-level coordination procedure.
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>3.2 Escalation Paths: From Automated Alert to Network-Level Coordination</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 1: Automated Detection (T+0)</h4><p>Anomaly detection trigger fires. Alert payload generated and routed simultaneously to operator SOC PagerDuty and OCP incident queue. OCP automated response evaluates severity classification. P1: validator isolation initiated immediately. P2: signing ceremony suspended pending ACK. P3/P4: logged, no automated action.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 2: Operator SOC Response (T+15m for P1)</h4><p>Operator SOC engineer acknowledges the alert through the OCP incident management interface, not through a direct host action. ACK registers a timestamp, engineer identity, and initial triage assessment. For P1: SOC engineer confirms isolation state and begins forensic evidence preservation sequence. For P2: SOC engineer evaluates whether P2 should be escalated to P1 based on triage.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 3: Institution Notification (P1/P2, T+30m)</h4><p>OCP delivers a structured incident notification to the institution's security contact through the institutional gateway. Notification includes: incident identifier, severity classification, automated actions taken, operator ACK status, and a non-action request (the institution is being informed, not asked to sign anything at this stage). If the incident involves key material exposure risk, the institution's custody team is notified separately with a key rotation recommendation.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 4: Cross-Layer Coordination (P1 escalation or P2 requiring signing)</h4><p>If incident resolution requires a root-gated action (key rotation, deregistration, configuration update) the OCP constructs the appropriate signing ceremony envelope and delivers it to the institution through the standard ceremony pathway. The operator has no role in the signing decision. Maker/Checker/Reviewer process inside the institution's custody environment applies with full M/C/R requirements. Reviewer is non-waivable even under incident conditions.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 5: Network-Level Coordination (P1, if operator unresponsive at T+60m)</h4><p>OCP escalates to network coordination alert. Other active validators in the cohort receive a read-only status notification (no action required from them). OCP evaluates whether the affected validator's allocation weight should be redistributed to remaining operators within the 60% single-operator cap. Redistribution uses the CRS-based routing logic from M3. Network-level coordination does not require institution signing unless a permanent deregistration decision is made.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 6: Resolution and Return-to-Operations (Post-containment)</h4><p>Resolution is confirmed when: the threat is eliminated and evidence preserved, the validator node has passed secure boot verification with a clean manifest, OCP has confirmed telemetry continuity for 5 consecutive minutes, and the institution has acknowledged the post-incident notification. Operator must submit a root cause analysis within the tier SLA. Return to full signing ceremony operations requires institution sign-off through the OCP gateway. The operator cannot unilaterally restore the node to active signing status after a P1 incident.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>3.3 Communication Templates</h3>
+    <p>Standardized communication templates are used for all external-facing incident communications. Templates ensure consistent information delivery and prevent inadvertent disclosure of forensic evidence or investigation status.</p>
+    <table>
+      <tr><th>Template ID</th><th>Recipient</th><th>Trigger</th><th>Required Fields</th></tr>
+      <tr><td><code>INC-INST-01</code></td><td>Institution security contact</td><td>P1/P2 alert generated</td><td>Incident ID, severity, timestamp, automated actions taken, signing ceremony status, estimated resolution window</td></tr>
+      <tr><td><code>INC-INST-02</code></td><td>Institution custody team</td><td>P1 with key material exposure risk</td><td>Incident ID, exposure risk classification, key rotation recommendation, ceremony envelope delivery ETA</td></tr>
+      <tr><td><code>INC-NET-01</code></td><td>OCP network coordination channel</td><td>P1 escalation at T+60m</td><td>Incident ID, affected validator ID, isolation state, allocation weight redistribution status</td></tr>
+      <tr><td><code>INC-SOC-01</code></td><td>Operator SOC (SLA breach)</td><td>ACK SLA breach</td><td>Incident ID, breach duration, escalation actions taken by OCP, required operator response</td></tr>
+      <tr><td><code>PIR-01</code></td><td>Institution + OCP</td><td>Post-incident review</td><td>Root cause, timeline, evidence summary, remediation actions, preventive controls added, re-occurrence risk assessment</td></tr>
+    </table>
+    <div class="callout info">
+      <strong>Operator Constraint on External Communications</strong>
+      Operators may not communicate incident status directly to institutions outside the OCP-mediated gateway channels. Direct operator-to-institution messaging about an active incident is treated as a governance violation (same architectural principle as in M3: no direct operator-to-institution instruction channel). All incident communications to institutions route through OCP to preserve the zero-custody integrity of the communication channel.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SECTION 4: FORENSIC EVIDENCE PRESERVATION -->
+<div class="section" id="s4">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <h2>Forensic Evidence Preservation Workflows</h2>
+  </div>
+
+  <p>Forensic evidence preservation ensures that post-incident investigations can reconstruct attacker activity, confirm the scope of compromise, and demonstrate compliance with institutional security standards. Evidence must be preserved in a form that is admissible for institutional audit, regulator review, and potential legal proceedings. All preservation workflows operate independently of operator-controlled infrastructure to prevent evidence tampering by a compromised operator.</p>
+
+  <div class="subsection">
+    <h3>4.1 Log Immutability Guarantees</h3>
+    <p>All security-relevant logs generated by validator processes, the telemetry agent, the OCP bridge, and the network listener are written simultaneously to two destinations: a local rolling buffer (readable by the operator SOC) and the OCP immutable log store (write-once, operator-inaccessible for modification or deletion).</p>
+    <table>
+      <tr><th>Log Category</th><th>Local Retention</th><th>OCP Immutable Store Retention</th><th>Integrity Mechanism</th></tr>
+      <tr><td>Signing ceremony event logs</td><td>90 days rolling</td><td>7 years (regulatory minimum)</td><td>SHA-256 hash chain; each entry includes hash of previous entry</td></tr>
+      <tr><td>Authentication and access logs</td><td>90 days rolling</td><td>7 years</td><td>SHA-256 hash chain; timestamp from OCP NTP source (not local clock)</td></tr>
+      <tr><td>Firewall and network egress logs</td><td>30 days rolling</td><td>3 years</td><td>SHA-256 hash chain; forwarded within 60 seconds of generation</td></tr>
+      <tr><td>Process integrity check results</td><td>30 days rolling</td><td>3 years</td><td>SHA-256 hash of result record; signed by telemetry agent key</td></tr>
+      <tr><td>Configuration state snapshots</td><td>10 versions rolling</td><td>Indefinite (per version)</td><td>Content-addressed storage; OCP-signed manifest per snapshot</td></tr>
+      <tr><td>OCP command and response log</td><td>90 days rolling</td><td>7 years</td><td>SHA-256 hash chain; bidirectional; OCP and validator both retain copies</td></tr>
+    </table>
+    <p>The hash chain mechanism ensures that log tampering is detectable: any modification to an entry invalidates the chain from that entry forward. OCP verifies the hash chain integrity for all logs in the immutable store on a daily basis. A chain integrity failure generates a P2 alert and initiates a forensic investigation of the affected log stream.</p>
+    <p>Timestamps in all log entries use OCP-sourced NTP time, not the local validator host clock. An attacker with access to the local host cannot alter timestamps by manipulating the local clock. The OCP NTP source is verified against a GPS-disciplined reference and does not accept local network time sources.</p>
+  </div>
+
+  <div class="subsection">
+    <h3>4.2 Chain-of-Custody Procedures for Compromised Node Artifacts</h3>
+    <p>When a validator node is isolated following a P1 or P2 incident, a chain-of-custody workflow is initiated immediately. The workflow is triggered automatically by OCP isolation and does not require operator action to begin. This prevents a compromised operator from delaying evidence collection.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Step 1: Isolation Confirmation and Custody Record Creation (T+0 from isolation)</h4><p>OCP records the isolation event with a UUID custody record identifier. The record includes: trigger alert ID, isolation timestamp, validator node identifier, operator identifier, and the OCP engineer identity (or "AUTOMATED" for automated isolation). This custody record is the root of the chain-of-custody log for all subsequent evidence actions.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Step 2: In-Memory State Capture (T+2m, before any process termination)</h4><p>The OCP bridge instructs the validator host to capture a memory dump of all validator processes before any process is terminated. The dump is written to an isolated evidence partition with a computed SHA-256 hash. No network traffic is permitted from the host during this step. The hash is registered in the custody record. The evidence partition is mounted read-only after capture.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Step 3: Log Buffer Flush and Forward (T+5m)</h4><p>All local log buffers are flushed and forwarded to the OCP immutable store before any process restart. The OCP immutable store returns a receipt with a content hash confirming receipt of each log stream. Receipts are added to the custody record. Log forwarding is confirmed before proceeding to Step 4.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Step 4: Disk Image Snapshot (T+10m)</h4><p>A block-level disk image of the validator host root volume is created and stored in the evidence partition. The image is hashed (SHA-256) and the hash registered in the custody record. The image is uploaded to a designated OCP forensic storage endpoint over a one-way transfer mechanism (the forensic storage endpoint cannot write back to the validator host). The image is encrypted at rest using a key held by OCP, not the operator.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Step 5: Custody Record Finalization and Institutional Notification (T+15m)</h4><p>The custody record is signed by OCP and delivered to the institution's security contact via the institutional gateway. The operator receives a read-only copy of the custody record summary (not the underlying evidence). The full evidence set is accessible only to OCP forensic analysts and the institution's designated forensic contacts. Operator access to forensic evidence requires a co-signed authorization from OCP and the institution.</p></div>
+      </div>
+    </div>
+    <div class="callout critical">
+      <strong>Operator Evidence Access Restriction</strong>
+      A compromised operator is the primary adversary model for chain-of-custody design. Operators cannot access the OCP forensic storage endpoint. Operators cannot modify or delete entries in the OCP immutable log store. Operators cannot view the full custody record without institution co-authorization. This design ensures that even a fully compromised Operator Layer cannot destroy forensic evidence needed to investigate the compromise.
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>4.3 Snapshot and Isolation Procedures</h3>
+    <p>Snapshot and isolation procedures preserve the system state at the moment of detection while preventing further compromise. Isolation removes the validator from active signing participation without terminating processes (to preserve forensic state).</p>
+    <table>
+      <tr><th>Procedure</th><th>Trigger</th><th>Action</th><th>Authorization Required</th></tr>
+      <tr><td>Network isolation</td><td>P1 alert (automated)</td><td>OCP instructs firewall controller to drop all traffic except OCP forensic collection channels</td><td>None; automated, operator notified</td></tr>
+      <tr><td>Signing ceremony suspension</td><td>P1 or P2 alert (automated)</td><td>OCP closes the signing envelope delivery channel; pending ceremonies fail with <code>ERR_NODE_ISOLATED</code></td><td>None; automated, institution notified</td></tr>
+      <tr><td>Memory snapshot</td><td>P1 isolation (automated, T+2m)</td><td>OCP bridge captures process memory images before any restart</td><td>None; automated</td></tr>
+      <tr><td>Disk image snapshot</td><td>P1 isolation (automated, T+10m)</td><td>Block-level image written to evidence partition; uploaded to OCP forensic store</td><td>None; automated</td></tr>
+      <tr><td>Process freeze (forensic hold)</td><td>Operator SOC request, P1 investigation</td><td>All validator processes suspended (SIGSTOP); no termination; preserves in-memory state for extended forensics</td><td>OCP authorization required; institution notified</td></tr>
+      <tr><td>Evidence partition release</td><td>Post-investigation</td><td>Evidence partition transferred to long-term OCP forensic archive</td><td>OCP + institution co-authorization required</td></tr>
+    </table>
+  </div>
+
+  <div class="subsection">
+    <h3>4.4 Integration with M2 Disaster Recovery Plan</h3>
+    <p>The forensic evidence preservation workflow integrates with the disaster recovery architecture established in M2. The DR plan defined the recovery hierarchy: standby node promotion, key rotation via signing ceremony, and institutional re-enrollment. The forensic workflow connects to this hierarchy at two integration points.</p>
+    <p>First, forensic evidence collection precedes DR activation. OCP will not promote a standby node to replace a compromised validator until the custody record creation step (Step 2 above) is confirmed. This prevents DR activation from overwriting forensic state on the compromised host before evidence is captured. The 15-minute evidence capture window is designed to complete before any DR activation would be operationally required for a P1 event.</p>
+    <p>Second, the forensic log store feeds the root cause analysis required before the recovered validator is returned to active signing. The institution reviews the forensic findings as part of its decision to authorize the return-to-operations signing ceremony. No institution is required to authorize re-activation without reviewing the forensic summary. The signing ceremony for re-activation is explicitly linked to the incident record ID in the envelope payload, so the institution knows exactly which incident recovery it is authorizing.</p>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- SECTION 5: OCP RECOVERY INTEGRATION POINTS -->
+<div class="section" id="s5">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2>OCP Recovery Integration Points</h2>
+  </div>
+
+  <p>The Orchestration Control Plane (OCP) serves as the recovery coordination authority for all security incidents affecting validator nodes. OCP recovery integration follows the same layered authorization model used for routine operations: automated actions for time-critical containment, human-in-the-loop authorization for institutional decisions, and root-gated signing ceremonies for permanent state changes. The OCP cannot take permanent recovery actions unilaterally. Institutions retain signing authority over all root-gated operations even during incident response.</p>
+
+  <div class="subsection">
+    <h3>5.1 Validator Isolation Triggering</h3>
+    <p>OCP triggers validator isolation through the OCP bridge channel, not through direct host access. The isolation command is authenticated with OCP's mTLS certificate and includes: incident record ID, isolation justification code, authorized action scope, and a freshness timestamp within the 120-second signing window (preventing replay of a stale isolation command to take a validator offline outside an incident context).</p>
+    <table>
+      <tr><th>Isolation Trigger</th><th>OCP Action</th><th>Operator Notification</th><th>Institution Notification</th><th>Reversibility</th></tr>
+      <tr><td>P1 automated alert</td><td>Immediate isolation; signing suspended; forensic capture initiated</td><td>Simultaneous with isolation action</td><td>Within 30 minutes via institutional gateway</td><td>Requires operator ACK + institution concurrence</td></tr>
+      <tr><td>P2 automated alert</td><td>Signing ceremony suspension only; node continues block validation</td><td>Simultaneous with suspension</td><td>Within 30 minutes via institutional gateway</td><td>Operator ACK sufficient for signing resumption; institution informed</td></tr>
+      <tr><td>Operator SLA breach (P1 at T+60m)</td><td>Maintains isolation; escalates to network coordination; increases institution notification priority</td><td>SLA breach notification sent</td><td>Direct escalation notification; institution can authorize maintenance operator override</td><td>Operator ACK required before isolation can be lifted</td></tr>
+      <tr><td>Manual OCP engineer isolation</td><td>Isolation with human-authorized incident record</td><td>Immediate</td><td>Within 15 minutes</td><td>OCP engineer de-isolation with audit trail; institution informed</td></tr>
+    </table>
+    <div class="callout info">
+      <strong>Isolation Freshness Protection</strong>
+      Isolation commands include a 120-second freshness timestamp using the same mechanism as signing ceremony envelopes. A replayed isolation command (for example, an attacker attempting to take a validator offline by replaying a captured isolation command from a previous incident) is rejected with <code>ERR_NONCE_REPLAY</code>. The 30-day nonce retention log applies to isolation commands as well as signing envelopes. This prevents isolation commands from being weaponized as availability attacks.
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>5.2 Standby Failover Initiation</h3>
+    <p>Failover to standby nodes follows the weight redistribution logic established in M3 routing specifications. The CRS-based routing engine redistributes the isolated validator's allocation weight across remaining active operators subject to two hard constraints: no single operator may hold more than 60% of total allocation weight, and at least two active operators must remain in the active pool. If redistribution cannot satisfy both constraints (for example, only two operators remain and one is isolated), OCP enters a safe degraded state and escalates immediately to the institution for guidance.</p>
+    <table>
+      <tr><th>Failover Scenario</th><th>OCP Action</th><th>Constraint Check</th><th>Institution Authorization Required?</th></tr>
+      <tr><td>One validator isolated; two or more remaining with headroom below 60% cap</td><td>Automated weight redistribution; CRS-proportional allocation; broadcast to peer network within 30s SLA</td><td>60% cap and 2-operator minimum verified before redistribution</td><td>No; automated, institution notified</td></tr>
+      <tr><td>One validator isolated; redistribution would push a remaining operator above 60% cap</td><td>Partial redistribution up to cap; remaining weight held unallocated; operator notified to add standby capacity</td><td>60% cap enforced; unallocated weight tracked</td><td>No; automated, institution informed of reduced allocation</td></tr>
+      <tr><td>One validator isolated; only one remaining operator (2-operator minimum breach)</td><td>OCP enters safe degraded state; no new signing ceremonies accepted; immediate P1 escalation to institution and network coordination</td><td>2-operator minimum enforced; no redistribution until minimum restored</td><td>Yes; institution must authorize emergency standby enrollment or validator isolation reversal</td></tr>
+      <tr><td>Permanent deregistration decision post-investigation</td><td>OCP constructs deregistration signing ceremony envelope; delivers to institution via standard ceremony pathway</td><td>All ceremony integrity checks apply (freshness, nonce, M/C/R)</td><td>Yes; root-gated action, Reviewer non-waivable</td></tr>
+    </table>
+    <p>Standby failover weight redistribution is logged in the OCP audit trail with the triggering incident record ID. Institutions can trace any routing change back to the incident that caused it. Failover weight changes are temporary by default: when a previously isolated validator is cleared and returned to operations, its allocation weight is restored through the normal CRS-based routing cycle, not through an emergency override that would bypass the scoring logic.</p>
+  </div>
+
+  <div class="subsection">
+    <h3>5.3 Fleet-Wide Security Patch Coordination</h3>
+    <p>A security incident on one validator may indicate a vulnerability applicable to the full validator fleet. OCP fleet-wide patch coordination allows a security fix to be distributed to all operators simultaneously while maintaining the signing ceremony integrity requirements for binary changes.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 1: Patch Authorization</h4><p>OCP security team prepares a patch manifest with new binary hashes for all affected components. The manifest is signed with OCP's root signing key. The patch is classified as a root-gated action (configuration update class). A signing ceremony envelope is constructed for each institution, referencing the patch manifest hash. Institutions perform the M/C/R process independently before any patch is distributed to operators.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 2: Staged Rollout</h4><p>After institution authorization, OCP distributes the patch to operators in stages: 25% of operators first, with a 4-hour observation window before proceeding to the full fleet. If any patched validator shows anomalous behavior during the observation window, the rollout is paused and the affected validator is isolated pending investigation. Patch rollout status is visible to all institutions through the OCP governance dashboard.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 3: Operator Distribution</h4><p>Each operator receives the patch through the OCP update channel. Operators apply the patch through their standard update pipeline. After application, the secure boot verification sequence runs automatically, confirming the new binary hashes match the authorized manifest. Operators report patch completion status to OCP through the telemetry channel. Any operator that fails to apply an emergency security patch within the specified remediation window is downgraded in CRS scoring under the configuration freshness component.</p></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-connector"><div class="line top"></div><div class="dot"></div><div class="line bottom"></div></div>
+        <div class="flow-box"><h4>Stage 4: Verification and Fleet Attestation</h4><p>After full fleet rollout, OCP generates a fleet attestation report confirming that all validators are running the authorized binary versions per their registered manifest hashes. The report is delivered to all institutions through the institutional gateway and retained in the OCP immutable audit store. Institutions can independently verify any operator's binary version by requesting a telemetry attestation through the OCP dashboard.</p></div>
+      </div>
+    </div>
+    <div class="callout warning">
+      <strong>Emergency Patch Timeline</strong>
+      For actively exploited vulnerabilities (incident-linked patches), the staging observation window is compressed to 1 hour from 4 hours. Institution authorization is still required, but OCP may request expedited M/C/R processing with a 2-hour ceremony SLA rather than the standard 24-hour window. Reviewer authorization is non-waivable even under emergency patch conditions. The Reviewer role exists specifically to function as a check during high-pressure situations.
+    </div>
+  </div>
+
+  <div class="subsection">
+    <h3>5.4 Restoration of Normal Operations After Incident Resolution</h3>
+    <p>Return to full operations after a P1 or P2 incident follows a defined clearance sequence. No step in this sequence can be skipped, and the institution holds sign-off authority over the final restoration action.</p>
+    <table>
+      <tr><th>Clearance Step</th><th>Responsible Party</th><th>Verification Mechanism</th><th>Output</th></tr>
+      <tr><td>1. Threat eliminated confirmed</td><td>Operator SOC + OCP forensic</td><td>Forensic analysis complete; root cause identified; attacker access path closed</td><td>Forensic clearance record in custody log</td></tr>
+      <tr><td>2. Node clean build verified</td><td>OCP automated</td><td>Secure boot verification passes against current authorized manifest; no hash mismatches</td><td>Clean build attestation in OCP audit store</td></tr>
+      <tr><td>3. 5-minute telemetry continuity confirmed</td><td>OCP automated</td><td>5 consecutive 30-second telemetry cycles received without gaps or anomalies</td><td>Telemetry continuity flag set in OCP node registry</td></tr>
+      <tr><td>4. Post-incident review delivered</td><td>Operator</td><td>Root cause analysis report submitted within tier SLA; reviewed by OCP and institution</td><td>PIR-01 template submitted and acknowledged</td></tr>
+      <tr><td>5. Institution restoration authorization</td><td>Institution (Layer 1)</td><td>Signing ceremony envelope for return-to-operations authorization; references incident record ID; M/C/R required; Reviewer non-waivable</td><td>Signed authorization broadcast; OCP restores signing ceremony channel</td></tr>
+      <tr><td>6. CRS score restoration</td><td>OCP automated</td><td>CRS scoring resumes normal cycle; incident impact on Verified Inference score fades over standard degradation window</td><td>Operator CRS tracking restored; allocation weight re-entered into routing pool</td></tr>
+    </table>
+    <div class="callout success">
+      <strong>Institution Authority Over Final Restoration</strong>
+      The institution's restoration authorization (Step 5) is a root-gated signing ceremony, not a notification acknowledgment. The operator cannot return a validator to active signing operations by self-certifying resolution. This is the defining control that separates the Post Fiat security model from conventional operator-controlled infrastructure: the institution's signing authority governs not only the validator's initial enrollment but also its restoration after every significant security incident. Operators who breach this sequencing are treated as governance violations under the M3 coordination model.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- APPENDIX -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-num" style="background: var(--gray);">A</div>
+    <h2>Appendix: Reference Tables and Design Constants</h2>
+  </div>
+
+  <div class="subsection">
+    <h3>A.1 Established Architecture Constants (Cross-Spec)</h3>
+    <table>
+      <tr><th>Constant</th><th>Value</th><th>Source Spec</th></tr>
+      <tr><td>Signature scheme</td><td>Ed25519 over canonical JSON (RFC 8785)</td><td>M2 Institutional Trust Architecture</td></tr>
+      <tr><td>Envelope freshness window</td><td>120 seconds</td><td>M3 Institutional Deployment Pathway</td></tr>
+      <tr><td>Nonce retention period</td><td>30 days minimum</td><td>M3 Institutional Deployment Pathway</td></tr>
+      <tr><td>Replay error code</td><td><code>ERR_NONCE_REPLAY</code></td><td>M3 Institutional Deployment Pathway</td></tr>
+      <tr><td>Key revocation error code</td><td><code>ERR_KEY_REVOKED</code></td><td>M5 (this document)</td></tr>
+      <tr><td>Node isolation error code</td><td><code>ERR_NODE_ISOLATED</code></td><td>M5 (this document)</td></tr>
+      <tr><td>Approved custody types</td><td>Institution-owned HSM (FIPS 140-2 L3), air-gapped system, institutional multisig</td><td>M2 Institutional Trust Architecture</td></tr>
+      <tr><td>Cloud HSM status</td><td>Rejected: provider retains operational access</td><td>M2 Institutional Trust Architecture</td></tr>
+      <tr><td>Maximum single-operator allocation weight</td><td>60%</td><td>M3 Routing Logic</td></tr>
+      <tr><td>Minimum active operators</td><td>2 (no override)</td><td>M3 Routing Logic</td></tr>
+      <tr><td>OCP CRS evaluation cycle</td><td>60 seconds</td><td>M3 Routing Logic</td></tr>
+      <tr><td>Telemetry gap failover threshold</td><td>90 seconds (3 missed cycles)</td><td>M3 Routing Logic</td></tr>
+      <tr><td>OCP failover SLA (weight redistribution)</td><td>30 seconds from trigger to broadcast</td><td>M3 Routing Logic</td></tr>
+      <tr><td>Maker / Checker / Reviewer role model</td><td>Three roles; Reviewer non-waivable for high-value actions</td><td>M2 / M3</td></tr>
+    </table>
+  </div>
+
+  <div class="subsection">
+    <h3>A.2 M5-Specific Threshold Summary</h3>
+    <table>
+      <tr><th>Threshold</th><th>Value</th><th>Sustain Window</th><th>Rationale</th></tr>
+      <tr><td>Egress anomaly: P3 trigger</td><td>1 non-allowlisted attempt</td><td>None</td><td>Any egress attempt warrants logging; single occurrence is low-confidence</td></tr>
+      <tr><td>Egress anomaly: P1 trigger</td><td>3 attempts within 60 seconds</td><td>60-second rolling window</td><td>3-attempt burst indicates automated exfiltration tooling; 60s window catches rapid attacks</td></tr>
+      <tr><td>Signing velocity anomaly trigger</td><td>3 ceremonies within 60 seconds</td><td>60-second rolling window</td><td>Matches block cycle to eliminate false positives from batch catch-up</td></tr>
+      <tr><td>Binary integrity polling interval</td><td>300 seconds</td><td>Zero: immediate on first detection</td><td>Below 600s minimum dwell time for binary substitution attacks; no debounce</td></tr>
+      <tr><td>Failed SSH login: P2 trigger</td><td>5 attempts within 120 seconds</td><td>120-second rolling window</td><td>Differentiates manual typos (P3) from automated credential stuffing (P2)</td></tr>
+      <tr><td>Key revocation broadcast SLA</td><td>300 seconds from rotation completion</td><td>N/A</td><td>Minimizes window where old key could be used post-rotation</td></tr>
+      <tr><td>Fleet patch staged rollout observation</td><td>4 hours (1 hour for emergency)</td><td>N/A</td><td>Detects patch-induced instability before full fleet exposure</td></tr>
+      <tr><td>Post-restoration telemetry continuity confirmation</td><td>5 consecutive cycles (150 seconds)</td><td>5 cycles</td><td>Confirms stability beyond single-cycle transient; prevents premature clearance</td></tr>
+    </table>
+  </div>
+
+  <div class="appendix-grid">
+    <div class="appendix-card">
+      <h4>Integration Dependencies</h4>
+      <p>M2: zero-custody boundary, DR plan, HSM standards. M3: OCP routing logic, signing ceremony model, governance coordination, operator integration. M4: pilot readiness confirmation, telemetry validation.</p>
+    </div>
+    <div class="appendix-card">
+      <h4>Compliance Posture</h4>
+      <p>Log retention (7 years) supports SOC 2 Type II and ISO 27001 audit requirements. Chain-of-custody procedures support potential legal proceedings. FIPS 140-2 L3 custody meets institutional allocator security standards.</p>
+    </div>
+    <div class="appendix-card">
+      <h4>Out of Scope</h4>
+      <p>Application-layer vulnerability management, third-party penetration testing procedures, and Verified Inference score recovery mechanics are addressed in separate M5 sub-specifications.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <span>Post Fiat Superstructure Validator Platform: M5 Security Hardening and Incident Response Architecture, v1.0, March 2026</span>
+  <span>Classification: Institutional Security Specification</span>
+</div>
+
+</body>
+</html>
